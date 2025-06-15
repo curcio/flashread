@@ -8,6 +8,7 @@ flashcard interface using pygame for Spanish vocabulary practice.
 import math
 import random
 
+import pandas as pd
 import pygame
 from pygame.locals import MOUSEBUTTONDOWN, MOUSEBUTTONUP, QUIT
 
@@ -391,7 +392,13 @@ class FlashCardApp:
         active_letters = "".join(
             [letter for letter, state in self.toggle_states.items() if state]
         )
-        pattern = f"^[{active_letters}]+$"
+
+        # Handle case when no letters are selected
+        if not active_letters:
+            # Return empty DataFrame when no letters are allowed
+            return pd.DataFrame(columns=self.vocabulary_df.columns)
+
+        pattern = f"^[{active_letters}]"
 
         filtered_df = self.vocabulary_df[
             (self.vocabulary_df["Word"].str.contains(pattern, regex=True))
