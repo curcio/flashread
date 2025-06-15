@@ -398,10 +398,12 @@ class FlashCardApp:
             # Return empty DataFrame when no letters are allowed
             return pd.DataFrame(columns=self.vocabulary_df.columns)
 
-        pattern = f"^[{active_letters}]"
+        # Pattern to match words that contain ONLY the allowed letters
+        # ^[allowed_letters]+$ means the entire word must consist only of allowed letters
+        pattern = f"^[{active_letters}]+$"
 
         filtered_df = self.vocabulary_df[
-            (self.vocabulary_df["Word"].str.contains(pattern, regex=True))
+            (self.vocabulary_df["Word"].str.contains(pattern, regex=True, case=False))
             & (self.vocabulary_df["length"] >= self.slider_min_value)
             & (self.vocabulary_df["length"] <= self.slider_max_value)
         ]
@@ -413,26 +415,30 @@ class FlashCardApp:
         Display a word on the screen with current formatting options.
 
         Args:
-            word (str): Word to display
+            word (str): Word to display, or None if no words match filters
         """
         self.window.fill(self.WHITE)
 
-        # Apply hyphenation if enabled
-        display_word = word
-        if self.hyphenate_enabled:
-            try:
-                display_word = hyphenate_word(word)
-            except Exception as e:
-                print(f"Warning: Could not hyphenate word '{word}': {e}")
-                display_word = word
+        # Handle case when no words match the current filters
+        if word is None:
+            display_word = "no words"
+        else:
+            # Apply hyphenation if enabled
+            display_word = word
+            if self.hyphenate_enabled:
+                try:
+                    display_word = hyphenate_word(word)
+                except Exception as e:
+                    print(f"Warning: Could not hyphenate word '{word}': {e}")
+                    display_word = word
 
-        # Apply case formatting
-        if self.selected_case == "lower":
-            display_word = display_word.lower()
-        elif self.selected_case == "UPPER":
-            display_word = display_word.upper()
-        elif self.selected_case == "Title":
-            display_word = display_word.title()
+            # Apply case formatting
+            if self.selected_case == "lower":
+                display_word = display_word.lower()
+            elif self.selected_case == "UPPER":
+                display_word = display_word.upper()
+            elif self.selected_case == "Title":
+                display_word = display_word.title()
 
         # Render and display the word
         word_text = self.font.render(display_word, True, self.BLACK)
@@ -583,12 +589,75 @@ class FlashCardApp:
         """
         filtered_df = self.get_filtered_df()
         if filtered_df.empty:
-            print("Warning: No words match current filters. Using all vocabulary.")
-            if self.vocabulary_df.empty:
-                return None
-            return random.choice(self.vocabulary_df["Word"].tolist())
+            return None
         else:
             return random.choice(filtered_df["Word"].tolist())
+
+    def validate_word_matches_filters(self, word):
+        """
+        Validate that a word matches the current filter settings.
+
+        Args:
+            word (str): Word to validate
+
+        Returns:
+            bool: True if word matches current filters, False otherwise
+        """
+        if word is None:
+            return False
+
+        # Get active letters
+        active_letters = set(
+            letter.lower() for letter, state in self.toggle_states.items() if state
+        )
+
+        # Check if any letters are selected
+        if not active_letters:
+            return False
+
+        # Check if word contains ONLY allowed letters (case insensitive)
+        word_letters = set(word.lower())
+        if not word_letters.issubset(active_letters):
+            return False
+
+        # Check word length
+        word_length = len(word)
+        if word_length < self.slider_min_value or word_length > self.slider_max_value:
+            return False
+
+        return True
+
+    def get_display_word(self):
+        """
+        Get a word to display that is guaranteed to match current filter settings.
+
+        This function ensures that the returned word (if any) matches the current
+        letter selection and length filters. It provides additional validation
+        beyond the basic filtering to prevent showing invalid words.
+
+        Returns:
+            str: A valid word matching current filters, or None if no valid words exist
+        """
+        # First try to get a word using the standard filtering
+        candidate_word = self.get_random_word()
+
+        # Validate the word matches our filters (double-check)
+        if candidate_word is not None and self.validate_word_matches_filters(
+            candidate_word
+        ):
+            return candidate_word
+
+        # If validation failed, try a few more times to find a valid word
+        max_attempts = 10
+        for _ in range(max_attempts):
+            candidate_word = self.get_random_word()
+            if candidate_word is not None and self.validate_word_matches_filters(
+                candidate_word
+            ):
+                return candidate_word
+
+        # If we couldn't find a valid word after multiple attempts, return None
+        return None
 
     def run(self):
         """Main application loop."""
@@ -600,12 +669,8 @@ class FlashCardApp:
 
         dragging_min = dragging_max = False
 
-        # Get initial word
-        current_word = self.get_random_word()
-        if current_word is None:
-            print("Error: Could not get any words from vocabulary.")
-            return
-
+        # Get initial word (can be None if no words match current filters)
+        current_word = self.get_display_word()
         self.display_word(current_word)
 
         clock = pygame.time.Clock()
@@ -643,16 +708,19 @@ class FlashCardApp:
 
                     # Click on word to get next word (only if settings not visible)
                     if not self.settings_visible:
+                        # Handle click on word area (even if current_word is None)
+                        display_text = (
+                            current_word if current_word is not None else "no words"
+                        )
                         word_rect = self.font.render(
-                            current_word, True, self.BLACK
+                            display_text, True, self.BLACK
                         ).get_rect(
                             center=(self.WINDOW_WIDTH // 2, self.WINDOW_HEIGHT // 4)
                         )
                         if word_rect.collidepoint(event.pos):
-                            new_word = self.get_random_word()
-                            if new_word:
-                                current_word = new_word
-                                self.display_word(current_word)
+                            new_word = self.get_display_word()
+                            current_word = new_word  # Can be None
+                            self.display_word(current_word)
 
                 elif event.type == pygame.MOUSEMOTION:
                     # Handle slider dragging

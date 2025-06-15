@@ -248,10 +248,9 @@ class TestFlashCardApp:
         # Set impossible filters - no letters allowed
         app.toggle_states = {letter: False for letter in app.alphabet}
 
-        with patch("builtins.print"):  # Suppress warning print
-            word = app.get_random_word()
-            # Should fall back to using all vocabulary
-            assert word in sample_vocabulary["Word"].values
+        word = app.get_random_word()
+        # Should now return None instead of falling back to all vocabulary
+        assert word is None
 
     def test_slider_interaction_detection(self, sample_vocabulary):
         """Test slider interaction detection."""
@@ -403,3 +402,138 @@ class TestFlashCardApp:
         # Test active state
         app.settings_visible = True
         # State should be reflected in color choice during drawing
+
+    def test_get_random_word_should_return_none_when_no_matches(
+        self, sample_vocabulary
+    ):
+        """Test that get_random_word returns None when no words match filters instead of falling back to all vocabulary."""
+        app = FlashCardApp(sample_vocabulary)
+
+        # Set restrictive filters that won't match any words in sample vocabulary
+        # Assuming sample vocabulary doesn't have words starting with 'z' that are 10+ characters
+        app.toggle_states = {letter: False for letter in app.alphabet}
+        app.toggle_states["z"] = True  # Only allow words starting with 'z'
+        app.slider_min_value = 10  # Very long words only
+        app.slider_max_value = 15
+
+        # This test currently FAILS because get_random_word falls back to all vocabulary
+        # instead of returning None when no words match the filters
+        word = app.get_random_word()
+
+        # The word should be None, but currently it returns a word from all vocabulary
+        # This is the bug we need to fix
+        assert (
+            word is None
+        ), f"Expected None but got '{word}' - should not fall back to all vocabulary when filters don't match"
+
+    def test_display_word_handles_no_words_case(self, sample_vocabulary):
+        """Test that display_word can handle None input and shows 'no words' message."""
+        app = FlashCardApp(sample_vocabulary)
+
+        with patch.object(app, "window", spec=pygame.Surface) as mock_window:
+            mock_window.fill = MagicMock()
+            mock_window.blit = MagicMock()
+            with patch("pygame.display.flip"):
+                with patch.object(app, "draw_cogwheel"):
+                    with patch.object(app, "draw_settings_panel"):
+                        # This should display "no words" instead of crashing
+                        app.display_word(None)
+
+                        # Verify that the window was filled (basic rendering happened)
+                        mock_window.fill.assert_called()
+
+    def test_word_matches_current_filters(self, sample_vocabulary):
+        """Test that selected words always match the current filter settings."""
+        app = FlashCardApp(sample_vocabulary)
+
+        # Test with multiple letters - should only return words containing ONLY these letters
+        app.toggle_states = {letter: False for letter in app.alphabet}
+        app.toggle_states["a"] = True
+        app.toggle_states["s"] = True
+        app.toggle_states["o"] = True
+        app.slider_min_value = 4
+        app.slider_max_value = 8
+
+        # Get multiple words to test consistency
+        for _ in range(10):
+            word = app.get_random_word()
+            if word is not None:  # Skip None results
+                # Word should contain only allowed letters (case insensitive)
+                word_letters = set(word.lower())
+                allowed_letters = {"a", "s", "o"}
+                assert word_letters.issubset(
+                    allowed_letters
+                ), f"Word '{word}' contains letters not in {allowed_letters}"
+                # Word should be within length range
+                assert (
+                    4 <= len(word) <= 8
+                ), f"Word '{word}' length {len(word)} not in range 4-8"
+
+    def test_get_display_word_function(self, sample_vocabulary):
+        """Test that there's a dedicated function for getting the word to display with validation."""
+        app = FlashCardApp(sample_vocabulary)
+
+        # This test will initially fail until we implement get_display_word function
+        assert hasattr(app, "get_display_word"), "Should have get_display_word method"
+
+        # Test with restrictive filters - multiple common letters
+        app.toggle_states = {letter: False for letter in app.alphabet}
+        app.toggle_states["a"] = True
+        app.toggle_states["s"] = True
+        app.toggle_states["o"] = True
+        app.slider_min_value = 4
+        app.slider_max_value = 5
+
+        word = app.get_display_word()
+        if word is not None:
+            # Validate the word matches filters - contains only allowed letters
+            word_letters = set(word.lower())
+            allowed_letters = {"a", "s", "o"}
+            assert word_letters.issubset(
+                allowed_letters
+            ), f"Word '{word}' should contain only letters from {allowed_letters}"
+            assert 4 <= len(word) <= 5, f"Word '{word}' should be 4-5 characters long"
+
+    def test_validate_word_matches_filters(self, sample_vocabulary):
+        """Test the validate_word_matches_filters method."""
+        app = FlashCardApp(sample_vocabulary)
+
+        # Set specific filters: only 'a', 's', 'o' letters, length 4-5
+        app.toggle_states = {letter: False for letter in app.alphabet}
+        app.toggle_states["a"] = True
+        app.toggle_states["s"] = True
+        app.toggle_states["o"] = True
+        app.slider_min_value = 4
+        app.slider_max_value = 5
+
+        # Test valid words - contain only allowed letters
+        assert (
+            app.validate_word_matches_filters("sosa") is True
+        )  # only s, o, a - length 4
+        assert (
+            app.validate_word_matches_filters("sasos") is True
+        )  # only s, a, o - length 5
+
+        # Test invalid words - contain forbidden letters
+        assert app.validate_word_matches_filters("casa") is False  # contains 'c'
+        assert app.validate_word_matches_filters("agua") is False  # contains 'g', 'u'
+
+        # Test invalid words - wrong length
+        assert (
+            app.validate_word_matches_filters("sas") is False
+        )  # only allowed letters but too short
+        assert (
+            app.validate_word_matches_filters("sosasa") is False
+        )  # only allowed letters but too long
+
+        # Test edge cases
+        assert app.validate_word_matches_filters(None) is False  # None input
+        assert app.validate_word_matches_filters("") is False  # empty string
+
+        # Test case insensitivity
+        assert (
+            app.validate_word_matches_filters("SOSA") is True
+        )  # uppercase should work
+        assert (
+            app.validate_word_matches_filters("SoSa") is True
+        )  # mixed case should work
