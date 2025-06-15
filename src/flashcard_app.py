@@ -1,182 +1,16 @@
 """
-FlashRead - A Spanish text processing and vocabulary flashcard application.
+Pygame-based flashcard application for vocabulary learning.
 
-This module processes Spanish text files to extract word frequencies and creates
-an interactive pygame-based flashcard interface for vocabulary learning.
+This module contains the FlashCardApp class that manages the interactive
+flashcard interface using pygame for Spanish vocabulary practice.
 """
 
-import string
-import os
-import re
 import random
-import sys
-from collections import defaultdict
-
-import nltk
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import pygame
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 from pygame.locals import QUIT, MOUSEBUTTONDOWN, MOUSEBUTTONUP
-import silabeador
 
-
-def setup_nltk():
-    """Download required NLTK data."""
-    nltk.download('punkt')
-    nltk.download('stopwords')
-
-
-def setup_matplotlib():
-    """Configure matplotlib and seaborn settings."""
-    sns.set(style="whitegrid")
-
-
-def hyphenate_word(word):
-    """
-    Hyphenate a Spanish word using the silabeador library.
-    
-    Args:
-        word (str): Spanish word to hyphenate
-        
-    Returns:
-        str: Word with syllables separated by hyphens
-    """
-    syllables = silabeador.syllabify(word)
-    hyphenated_word = '-'.join(syllables)
-    return hyphenated_word
-
-
-def process_file(filename):
-    """
-    Process a text file and return a dictionary with words and their frequencies.
-    
-    Args:
-        filename (str): Path to the text file to process
-        
-    Returns:
-        dict: Dictionary with words as keys and frequencies as values
-    """
-    word_freq = defaultdict(int)
-
-    with open(filename, 'r', encoding='utf-8') as file:
-        text = file.read()
-
-    # Remove punctuation and convert to lowercase
-    text = text.translate(str.maketrans('', '', string.punctuation)).lower()
-
-    # Remove unicode characters but preserve Spanish characters
-    text = re.sub(r'[^\w\s.,;:!?¿¡áéíóúüñÁÉÍÓÚÜÑ]+', '', text)
-
-    # Tokenize the text
-    tokens = word_tokenize(text)
-
-    # Remove stopwords
-    stop_words = set(stopwords.words('english'))
-    tokens = [word for word in tokens if word not in stop_words]
-
-    # Count word frequencies
-    for token in tokens:
-        word_freq[token] += 1
-
-    return dict(word_freq)
-
-
-def plot_word_frequencies(word_freq):
-    """
-    Plot the word frequencies using seaborn.
-    
-    Args:
-        word_freq (dict): Dictionary with words and their frequencies
-    """
-    df = pd.DataFrame(word_freq.items(), columns=['Word', 'Frequency'])
-    df = df.sort_values(by='Frequency', ascending=False)
-    
-    print("Top 20 words:")
-    print(df.head(20))
-    
-    plt.figure(figsize=(12, 6))
-    sns.barplot(x='Frequency', y='Word', data=df.head(20))
-    plt.title('Top 20 Words')
-    plt.xlabel('Frequency')
-    plt.ylabel('Word')
-    plt.show()
-
-
-def process_all_corpus_files(corpus_dir):
-    """
-    Process all text files in the given directory and return accumulated word frequencies.
-    
-    Args:
-        corpus_dir (str): Directory containing text files to process
-        
-    Returns:
-        dict: Dictionary with accumulated word frequencies across all files
-    """
-    total_word_freq = defaultdict(int)
-
-    for filename in os.listdir(corpus_dir):
-        if filename.endswith('.txt'):
-            print(f"Processing file: {filename}")
-            file_path = os.path.join(corpus_dir, filename)
-            word_freq = process_file(file_path)
-            for word, freq in word_freq.items():
-                total_word_freq[word] += freq
-
-    return dict(total_word_freq)
-
-
-def read_word_list(file_path, word_count):
-    """
-    Read a file containing a list of words and return a DataFrame with word counts.
-    
-    Args:
-        file_path (str): Path to the word list file
-        word_count (dict): Dictionary with word frequencies from corpus
-        
-    Returns:
-        pd.DataFrame: DataFrame with words and their counts
-    """
-    df = pd.read_csv(file_path, header=None, names=['Word'])
-    df['Word'] = df['Word'].str.translate(str.maketrans('', '', string.punctuation)).str.lower()
-    df['Count'] = df['Word'].map(word_count).fillna(0).astype(int)
-    return df
-
-
-def create_vocabulary_dataframe(word_count):
-    """
-    Create a filtered vocabulary DataFrame from word lists.
-    
-    Args:
-        word_count (dict): Dictionary with word frequencies from corpus
-        
-    Returns:
-        pd.DataFrame: Filtered DataFrame with words, counts, and lengths
-    """
-    # Read and combine word lists from files 04.txt through 08.txt
-    dfs = []
-    for i in range(4, 9):
-        file_path = f'0{i}.txt'
-        if os.path.exists(file_path):
-            df = read_word_list(file_path, word_count)
-            dfs.append(df)
-    
-    if not dfs:
-        print("Warning: No word list files found (04.txt - 08.txt)")
-        return pd.DataFrame(columns=['Word', 'Count', 'length'])
-    
-    # Combine all word lists
-    combined_df = pd.concat(dfs, ignore_index=True)
-    
-    # Filter words that appear more than 3 times
-    filtered_df = combined_df[combined_df['Count'] > 3]
-    
-    # Add word length column
-    filtered_df['length'] = filtered_df['Word'].str.len()
-    
-    return filtered_df
+from .utils import hyphenate_word
 
 
 class FlashCardApp:
@@ -189,6 +23,9 @@ class FlashCardApp:
         Args:
             vocabulary_df (pd.DataFrame): DataFrame with vocabulary words
         """
+        if vocabulary_df is None or vocabulary_df.empty:
+            raise ValueError("Vocabulary DataFrame cannot be empty")
+        
         self.vocabulary_df = vocabulary_df
         self.setup_pygame()
         self.setup_ui_elements()
@@ -294,7 +131,7 @@ class FlashCardApp:
         pattern = f"^[{active_letters}]+$"
         
         filtered_df = self.vocabulary_df[
-            (self.vocabulary_df['Word'].str.contains(pattern)) &
+            (self.vocabulary_df['Word'].str.contains(pattern, regex=True)) &
             (self.vocabulary_df['length'] >= self.slider_min_value) &
             (self.vocabulary_df['length'] <= self.slider_max_value)
         ]
@@ -311,19 +148,24 @@ class FlashCardApp:
         self.window.fill(self.WHITE)
         
         # Apply hyphenation if enabled
+        display_word = word
         if self.hyphenate_enabled:
-            word = hyphenate_word(word)
+            try:
+                display_word = hyphenate_word(word)
+            except Exception as e:
+                print(f"Warning: Could not hyphenate word '{word}': {e}")
+                display_word = word
         
         # Apply case formatting
         if self.selected_case == "lower":
-            word = word.lower()
+            display_word = display_word.lower()
         elif self.selected_case == "UPPER":
-            word = word.upper()
+            display_word = display_word.upper()
         elif self.selected_case == "Title":
-            word = word.title()
+            display_word = display_word.title()
         
         # Render and display the word
-        word_text = self.font.render(word, True, self.BLACK)
+        word_text = self.font.render(display_word, True, self.BLACK)
         text_rect = word_text.get_rect(center=(self.WINDOW_WIDTH // 2, self.WINDOW_HEIGHT // 4))
         self.window.blit(word_text, text_rect)
         
@@ -335,6 +177,22 @@ class FlashCardApp:
         
         pygame.display.flip()
     
+    def get_random_word(self):
+        """
+        Get a random word from the filtered vocabulary.
+        
+        Returns:
+            str: Random word or None if no words match filters
+        """
+        filtered_df = self.get_filtered_df()
+        if filtered_df.empty:
+            print("Warning: No words match current filters. Using all vocabulary.")
+            if self.vocabulary_df.empty:
+                return None
+            return random.choice(self.vocabulary_df['Word'].tolist())
+        else:
+            return random.choice(filtered_df['Word'].tolist())
+    
     def run(self):
         """Main application loop."""
         if self.vocabulary_df.empty:
@@ -344,16 +202,18 @@ class FlashCardApp:
         dragging_min = dragging_max = False
         
         # Get initial word
-        filtered_df = self.get_filtered_df()
-        if filtered_df.empty:
-            print("Warning: No words match current filters. Using all vocabulary.")
-            current_word = random.choice(self.vocabulary_df['Word'].tolist())
-        else:
-            current_word = random.choice(filtered_df['Word'].tolist())
+        current_word = self.get_random_word()
+        if current_word is None:
+            print("Error: Could not get any words from vocabulary.")
+            return
         
         self.display_word(current_word)
         
+        clock = pygame.time.Clock()
+        
         while True:
+            clock.tick(60)  # Limit to 60 FPS
+            
             for event in pygame.event.get():
                 if event.type == QUIT:
                     pygame.quit()
@@ -368,9 +228,9 @@ class FlashCardApp:
                         center=(self.WINDOW_WIDTH // 2, self.WINDOW_HEIGHT // 4)
                     )
                     if word_rect.collidepoint(event.pos):
-                        filtered_df = self.get_filtered_df()
-                        if not filtered_df.empty:
-                            current_word = random.choice(filtered_df['Word'].tolist())
+                        new_word = self.get_random_word()
+                        if new_word:
+                            current_word = new_word
                             self.display_word(current_word)
                     
                     # Handle alphabet toggles
@@ -417,49 +277,7 @@ class FlashCardApp:
                             self.SLIDER_WIDTH - self.slider_max_handle.width
                         )
                         self.display_word(current_word)
-
-
-def main():
-    """Main function that orchestrates the entire application."""
-    print("Starting FlashRead - Spanish Vocabulary Flashcard Application")
     
-    # Setup phase
-    print("Setting up NLTK...")
-    setup_nltk()
-    
-    print("Setting up matplotlib...")
-    setup_matplotlib()
-    
-    # Text processing phase
-    print("Processing corpus files...")
-    corpus_dir = 'corpus'
-    if not os.path.exists(corpus_dir):
-        print(f"Error: Corpus directory '{corpus_dir}' not found.")
-        return
-    
-    word_count = process_all_corpus_files(corpus_dir)
-    print(f"Processed {len(word_count)} unique words from corpus.")
-    
-    # Optional: Display word frequency plot
-    # Uncomment the next line to show frequency analysis
-    # plot_word_frequencies(word_count)
-    
-    # Vocabulary preparation phase
-    print("Creating vocabulary DataFrame...")
-    vocabulary_df = create_vocabulary_dataframe(word_count)
-    print(f"Created vocabulary with {len(vocabulary_df)} words.")
-    
-    if vocabulary_df.empty:
-        print("Error: No vocabulary words found. Please check your word list files.")
-        return
-    
-    # Launch flashcard application
-    print("Launching flashcard interface...")
-    app = FlashCardApp(vocabulary_df)
-    app.run()
-    
-    print("FlashRead application closed.")
-
-
-if __name__ == "__main__":
-    main()
+    def close(self):
+        """Clean up pygame resources."""
+        pygame.quit() 
