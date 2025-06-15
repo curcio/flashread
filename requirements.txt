@@ -3,4 +3,4 @@ matplotlib>=3.7.0
 seaborn>=0.12.0
 pandas>=2.0.0
 pygame>=2.5.0
-silabeador>=0.1.0 
+silabeador>=0.1.0

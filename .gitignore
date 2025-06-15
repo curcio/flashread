@@ -175,6 +175,3 @@ analysis/
 
 # Log files
 *.log
-
-# Virtual environment
-flashread_env/ 

@@ -220,7 +220,7 @@ The application works with Spanish literature texts including:
 ## Performance
 
 - **Efficient Processing**: Text files are processed once and cached
-- **Smart Loading**: Only loads necessary data for each operation  
+- **Smart Loading**: Only loads necessary data for each operation
 - **Memory Management**: Large datasets are handled efficiently with pandas
 - **Responsive UI**: Pygame interface maintains 60 FPS performance
 
@@ -235,4 +235,4 @@ Feel free to contribute by:
 
 ## License
 
-This project is for educational purposes. Please respect copyright of the included literary works. 
+This project is for educational purposes. Please respect copyright of the included literary works.

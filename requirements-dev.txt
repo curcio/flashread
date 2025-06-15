@@ -1,0 +1,14 @@
+# Development dependencies for FlashRead
+# Install with: pip install -r requirements-dev.txt
+
+# Pre-commit hooks
+pre-commit>=4.0.0
+
+# Code formatting and linting
+black>=24.0.0
+isort>=5.13.0
+autoflake>=2.3.0
+
+# Optional: Additional development tools
+flake8>=7.0.0
+mypy>=1.8.0
