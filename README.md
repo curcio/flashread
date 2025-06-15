@@ -44,12 +44,22 @@ git clone <repository-url>
 cd flashread
 ```
 
-2. Install dependencies:
+2. **Recommended**: Create and activate a virtual environment:
 ```bash
-pip install -r requirements.txt
+python -m venv flashread-env
+source flashread-env/bin/activate  # On Linux/Mac
+# or
+flashread-env\Scripts\activate     # On Windows
 ```
 
-3. NLTK data will be downloaded automatically on first run.
+3. Install the package in your virtual environment:
+```bash
+pip install -e .
+```
+
+This installs FlashRead and its dependencies, making the `flashread` command available only in your current virtual environment.
+
+4. NLTK data will be downloaded automatically on first run.
 
 ## Usage
 
