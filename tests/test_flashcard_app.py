@@ -45,7 +45,7 @@ class TestFlashCardApp:
         assert app.GRAY == (200, 200, 200)
 
         # Test settings panel colors
-        assert app.SETTINGS_BG == (240, 240, 245, 230)
+        assert app.SETTINGS_BG == (240, 240, 245)  # No longer has alpha transparency
         assert app.SETTINGS_BORDER == (180, 180, 190)
 
         # Test cogwheel colors

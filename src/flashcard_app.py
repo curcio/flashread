@@ -52,7 +52,7 @@ class FlashCardApp:
         self.GRAY = (200, 200, 200)
 
         # Settings panel colors
-        self.SETTINGS_BG = (240, 240, 245, 230)
+        self.SETTINGS_BG = (240, 240, 245)  # Removed alpha for no transparency
         self.SETTINGS_BORDER = (180, 180, 190)
         self.PANEL_SHADOW = (0, 0, 0, 50)
 
@@ -214,16 +214,8 @@ class FlashCardApp:
         if not self.settings_visible:
             return
 
-        # Draw semi-transparent overlay
-        overlay = pygame.Surface((self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
-        overlay.set_alpha(100)
-        overlay.fill((0, 0, 0))
-        self.window.blit(overlay, (0, 0))
-
-        # Create settings panel surface with alpha for transparency
-        panel_surface = pygame.Surface(
-            (self.PANEL_WIDTH, self.PANEL_HEIGHT), pygame.SRCALPHA
-        )
+        # Create settings panel surface without transparency
+        panel_surface = pygame.Surface((self.PANEL_WIDTH, self.PANEL_HEIGHT))
 
         # Draw panel background with rounded corners effect
         pygame.draw.rect(
