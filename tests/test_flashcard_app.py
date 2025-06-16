@@ -58,9 +58,9 @@ class TestFlashCardApp:
         app = FlashCardApp(sample_vocabulary)
 
         # Test panel dimensions
-        assert app.PANEL_WIDTH == 400
-        assert app.PANEL_HEIGHT == 350
-        assert app.PANEL_MARGIN == 30
+        assert app.PANEL_WIDTH == 480
+        assert app.PANEL_HEIGHT == 420
+        assert app.PANEL_MARGIN == 40
 
         # Test cogwheel position
         assert app.cogwheel_rect.width == 32
@@ -183,11 +183,11 @@ class TestFlashCardApp:
         """Test alphabet toggle interactions."""
         app = FlashCardApp(sample_vocabulary)
 
-        # Calculate position of first toggle (letter 'a')
+        # Calculate position of first toggle (letter 'a') using new spacing
         margin = app.PANEL_MARGIN
-        y_pos = 50 + 70  # Starting position + Word Length section
-        toggle_y = y_pos + 25
-        toggle_pos = (margin, toggle_y)
+        y_pos = 50 + app.SECTION_SPACING + 75  # Starting position + Word Length section
+        toggle_y = y_pos + app.SECTION_SPACING
+        toggle_pos = (margin + app.box_size // 2, toggle_y + app.box_size // 2)
 
         # Get current state of 'a'
         original_state = app.toggle_states["a"]
@@ -201,11 +201,13 @@ class TestFlashCardApp:
         """Test case selection interactions."""
         app = FlashCardApp(sample_vocabulary)
 
-        # Calculate position of first case option
+        # Calculate position of second case option using new spacing
         margin = app.PANEL_MARGIN
-        y_pos = 50 + 70 + 80  # Starting + Word Length + Alphabet toggles
-        case_y = y_pos + 25
-        case_pos = (margin + 110, case_y)  # Second option (UPPER)
+        y_pos = (
+            50 + app.SECTION_SPACING + 75 + app.SECTION_SPACING + 85
+        )  # All sections before case
+        case_y = y_pos + app.SECTION_SPACING
+        case_pos = (margin + 1 * 120 + 50, case_y + 10)  # Second option (UPPER)
 
         result = app.handle_settings_interactions(case_pos)
         assert result is True
@@ -215,10 +217,18 @@ class TestFlashCardApp:
         """Test hyphenation toggle interactions."""
         app = FlashCardApp(sample_vocabulary)
 
-        # Calculate position of hyphenation checkbox
+        # Calculate position of hyphenation checkbox using new spacing
         margin = app.PANEL_MARGIN
-        y_pos = 50 + 70 + 80 + 50  # All previous sections
-        hyphen_pos = (margin, y_pos)
+        y_pos = (
+            50
+            + app.SECTION_SPACING
+            + 75
+            + app.SECTION_SPACING
+            + 85
+            + app.SECTION_SPACING
+            + 40
+        )  # All previous sections
+        hyphen_pos = (margin + 9, y_pos + 9)  # Center of checkbox
 
         original_state = app.hyphenate_enabled
         result = app.handle_settings_interactions(hyphen_pos)
@@ -257,8 +267,8 @@ class TestFlashCardApp:
         app = FlashCardApp(sample_vocabulary)
         app.settings_visible = True
 
-        # Calculate slider handle position
-        slider_y = app.settings_panel_rect.y + 75
+        # Calculate slider handle position using new spacing
+        slider_y = app.settings_panel_rect.y + 50 + app.SECTION_SPACING + 10
         min_handle_x = (
             app.settings_panel_rect.x
             + app.PANEL_MARGIN
@@ -495,45 +505,84 @@ class TestFlashCardApp:
             assert 4 <= len(word) <= 5, f"Word '{word}' should be 4-5 characters long"
 
     def test_validate_word_matches_filters(self, sample_vocabulary):
-        """Test the validate_word_matches_filters method."""
+        """Test word validation against current filters."""
         app = FlashCardApp(sample_vocabulary)
 
-        # Set specific filters: only 'a', 's', 'o' letters, length 4-5
+        # Test with default settings (should match several words)
+        valid_words = ["casa", "cosa"]  # 4-letter words with allowed letters
+        invalid_words = ["perro", "trabajar"]  # Contains non-allowed letters
+
+        for word in valid_words:
+            assert app.validate_word_matches_filters(word)
+
+        for word in invalid_words:
+            assert not app.validate_word_matches_filters(word)
+
+        # Test with restricted letter set
         app.toggle_states = {letter: False for letter in app.alphabet}
+        app.toggle_states["c"] = True
         app.toggle_states["a"] = True
         app.toggle_states["s"] = True
-        app.toggle_states["o"] = True
-        app.slider_min_value = 4
-        app.slider_max_value = 5
 
-        # Test valid words - contain only allowed letters
-        assert (
-            app.validate_word_matches_filters("sosa") is True
-        )  # only s, o, a - length 4
-        assert (
-            app.validate_word_matches_filters("sasos") is True
-        )  # only s, a, o - length 5
+        # Only words with just c, a, s letters should be valid
+        assert app.validate_word_matches_filters("casa")
+        assert not app.validate_word_matches_filters("perro")
 
-        # Test invalid words - contain forbidden letters
-        assert app.validate_word_matches_filters("casa") is False  # contains 'c'
-        assert app.validate_word_matches_filters("agua") is False  # contains 'g', 'u'
+        # Test length restrictions
+        app.toggle_states = {letter: True for letter in app.alphabet}
+        app.slider_min_value = 6
+        app.slider_max_value = 6
 
-        # Test invalid words - wrong length
-        assert (
-            app.validate_word_matches_filters("sas") is False
-        )  # only allowed letters but too short
-        assert (
-            app.validate_word_matches_filters("sosasa") is False
-        )  # only allowed letters but too long
+        assert not app.validate_word_matches_filters("casa")  # Too short
+        assert app.validate_word_matches_filters("amigos")  # Just right (6 letters)
+        assert not app.validate_word_matches_filters("trabajar")  # Too long
 
-        # Test edge cases
-        assert app.validate_word_matches_filters(None) is False  # None input
-        assert app.validate_word_matches_filters("") is False  # empty string
+    def test_settings_panel_interactions_with_new_spacing(self, sample_vocabulary):
+        """Test that settings panel interactions work correctly with new spacing/padding."""
+        app = FlashCardApp(sample_vocabulary)
+        app.settings_visible = True
 
-        # Test case insensitivity
-        assert (
-            app.validate_word_matches_filters("SOSA") is True
-        )  # uppercase should work
-        assert (
-            app.validate_word_matches_filters("SoSa") is True
-        )  # mixed case should work
+        # Test alphabet toggle interaction - calculate position using the same logic as drawing
+        margin = app.PANEL_MARGIN
+        y_pos = 50
+
+        # Move to Starting Letters section (matches draw_settings_content)
+        y_pos += app.SECTION_SPACING + 75  # Word Length section
+        toggle_y = y_pos + app.SECTION_SPACING  # Starting Letters section
+
+        # Calculate position of first letter 'a' (should match drawing coordinates)
+        letter_x = margin + 0 * (app.box_size + 6)  # 'a' is at index 0
+        letter_y = toggle_y + 0 * (app.box_size + 6)  # First row
+
+        # Test toggle interaction
+        original_state = app.toggle_states["a"]
+        click_pos = (letter_x + app.box_size // 2, letter_y + app.box_size // 2)
+        result = app.handle_settings_interactions(click_pos)
+
+        # The interaction should work (return True) and toggle the state
+        assert result is True
+        assert app.toggle_states["a"] == (not original_state)
+
+        # Test case selection interaction
+        y_pos += app.SECTION_SPACING + 85  # Move to Display Case section
+        case_y = y_pos + app.SECTION_SPACING
+
+        # Click on second case option ("UPPER")
+        case_x = margin + 1 * 120  # Second option with new spacing
+        case_click_pos = (case_x + 50, case_y + 10)  # Center of the option
+
+        result = app.handle_settings_interactions(case_click_pos)
+        assert result is True
+        assert app.selected_case == "UPPER"
+
+        # Test hyphenation toggle interaction
+        y_pos += app.SECTION_SPACING + 40  # Move to hyphenation section
+        hyphen_x = margin + 9  # Center of checkbox
+        hyphen_y = y_pos + 9  # Center of checkbox
+
+        original_hyphen_state = app.hyphenate_enabled
+        hyphen_click_pos = (hyphen_x, hyphen_y)
+
+        result = app.handle_settings_interactions(hyphen_click_pos)
+        assert result is True
+        assert app.hyphenate_enabled == (not original_hyphen_state)

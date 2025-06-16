@@ -77,11 +77,11 @@ class FlashCardApp:
         # Layout constants
         self.COGWHEEL_SIZE = 32
         self.COGWHEEL_MARGIN = 20
-        self.PANEL_WIDTH = 400
-        self.PANEL_HEIGHT = 350
-        self.PANEL_MARGIN = 30
-        self.SECTION_SPACING = 15
-        self.ELEMENT_SPACING = 8
+        self.PANEL_WIDTH = 480
+        self.PANEL_HEIGHT = 420
+        self.PANEL_MARGIN = 40
+        self.SECTION_SPACING = 25
+        self.ELEMENT_SPACING = 12
 
         # Cogwheel icon position (upper right)
         self.cogwheel_rect = pygame.Rect(
@@ -117,16 +117,16 @@ class FlashCardApp:
 
         # Min slider
         self.slider_min_rect = pygame.Rect(
-            panel_x, panel_y + 40, self.SLIDER_WIDTH, self.SLIDER_HEIGHT
+            panel_x, panel_y + 50, self.SLIDER_WIDTH, self.SLIDER_HEIGHT
         )
-        self.slider_min_handle = pygame.Rect(panel_x, panel_y + 36, 8, 16)
+        self.slider_min_handle = pygame.Rect(panel_x, panel_y + 46, 8, 16)
         self.slider_min_value = 4
 
         # Max slider
         self.slider_max_rect = pygame.Rect(
-            panel_x + 180, panel_y + 40, self.SLIDER_WIDTH, self.SLIDER_HEIGHT
+            panel_x + 200, panel_y + 50, self.SLIDER_WIDTH, self.SLIDER_HEIGHT
         )
-        self.slider_max_handle = pygame.Rect(panel_x + 180, panel_y + 36, 8, 16)
+        self.slider_max_handle = pygame.Rect(panel_x + 200, panel_y + 46, 8, 16)
         self.slider_max_value = 8
 
         # Alphabet toggles (arranged in settings panel)
@@ -135,10 +135,10 @@ class FlashCardApp:
         self.toggle_states = {}
         self.box_size = 24
 
-        toggle_start_y = panel_y + 90
+        toggle_start_y = panel_y + 125
         for i, letter in enumerate(self.alphabet):
-            x = panel_x + (i % 13) * (self.box_size + 4)
-            y = toggle_start_y + (i // 13) * (self.box_size + 4)
+            x = panel_x + (i % 13) * (self.box_size + 6)
+            y = toggle_start_y + (i // 13) * (self.box_size + 6)
             self.toggle_boxes.append(
                 (pygame.Rect(x, y, self.box_size, self.box_size), letter)
             )
@@ -149,14 +149,14 @@ class FlashCardApp:
         self.case_rects = []
         self.selected_case = "lower"
 
-        case_start_y = toggle_start_y + 80
+        case_start_y = toggle_start_y + 110
         for i, case in enumerate(self.case_options):
-            x = panel_x + i * 110
+            x = panel_x + i * 120
             y = case_start_y
             self.case_rects.append((pygame.Rect(x, y, 100, 25), case))
 
         # Hyphenation toggle (checkbox in settings panel)
-        self.hyphenate_toggle_rect = pygame.Rect(panel_x, case_start_y + 40, 20, 20)
+        self.hyphenate_toggle_rect = pygame.Rect(panel_x, case_start_y + 65, 20, 20)
         self.hyphenate_enabled = False
 
     def draw_cogwheel(self):
@@ -271,7 +271,7 @@ class FlashCardApp:
         self.settings_panel_rect.x
         self.settings_panel_rect.y
 
-        slider_y = y_pos + 25
+        slider_y = y_pos + self.SECTION_SPACING + 10
         # Min slider
         slider_rect = pygame.Rect(
             margin, slider_y, self.SLIDER_WIDTH, self.SLIDER_HEIGHT
@@ -291,7 +291,7 @@ class FlashCardApp:
         surface.blit(min_text, (margin, slider_y - 20))
 
         # Max slider
-        max_slider_x = margin + 180
+        max_slider_x = margin + 200
         slider_rect = pygame.Rect(
             max_slider_x, slider_y, self.SLIDER_WIDTH, self.SLIDER_HEIGHT
         )
@@ -310,17 +310,17 @@ class FlashCardApp:
         surface.blit(max_text, (max_slider_x, slider_y - 20))
 
         # Starting Letters section
-        y_pos += 70
+        y_pos += self.SECTION_SPACING + 75
         label_text = self.settings_label_font.render(
             "Starting Letters:", True, self.BLACK
         )
         surface.blit(label_text, (margin, y_pos))
 
         # Alphabet toggles
-        toggle_y = y_pos + 25
+        toggle_y = y_pos + self.SECTION_SPACING
         for i, (_, letter) in enumerate(self.toggle_boxes):
-            x = margin + (i % 13) * (self.box_size + 4)
-            y = toggle_y + (i // 13) * (self.box_size + 4)
+            x = margin + (i % 13) * (self.box_size + 6)
+            y = toggle_y + (i // 13) * (self.box_size + 6)
 
             color = self.GREEN if self.toggle_states[letter] else self.RED
             toggle_rect = pygame.Rect(x, y, self.box_size, self.box_size)
@@ -333,13 +333,13 @@ class FlashCardApp:
             surface.blit(letter_text, text_rect)
 
         # Display Case section
-        y_pos += 80
+        y_pos += self.SECTION_SPACING + 85
         label_text = self.settings_label_font.render("Display Case:", True, self.BLACK)
         surface.blit(label_text, (margin, y_pos))
 
-        case_y = y_pos + 25
+        case_y = y_pos + self.SECTION_SPACING
         for i, (_, case) in enumerate(self.case_rects):
-            x = margin + i * 110
+            x = margin + i * 120
             radio_rect = pygame.Rect(x, case_y, 15, 15)
 
             # Draw radio button
@@ -352,7 +352,7 @@ class FlashCardApp:
             surface.blit(case_text, (x + 20, case_y - 2))
 
         # Spanish Hyphenation section
-        y_pos += 50
+        y_pos += self.SECTION_SPACING + 40
         checkbox_rect = pygame.Rect(margin, y_pos, 18, 18)
         pygame.draw.rect(surface, self.WHITE, checkbox_rect)
         pygame.draw.rect(surface, self.BLACK, checkbox_rect, 2)
@@ -487,13 +487,13 @@ class FlashCardApp:
         y_pos = 50  # Starting position in draw_settings_content
 
         # Skip to Starting Letters section (after Word Length section)
-        y_pos += 70  # Word Length section height
+        y_pos += self.SECTION_SPACING + 75  # Word Length section height
 
         # Handle alphabet toggles
-        toggle_y = y_pos + 25  # Same as in draw_settings_content
+        toggle_y = y_pos + self.SECTION_SPACING  # Same as in draw_settings_content
         for i, letter in enumerate(self.alphabet):
-            x = margin + (i % 13) * (self.box_size + 4)
-            y = toggle_y + (i // 13) * (self.box_size + 4)
+            x = margin + (i % 13) * (self.box_size + 6)
+            y = toggle_y + (i // 13) * (self.box_size + 6)
             toggle_rect = pygame.Rect(x, y, self.box_size, self.box_size)
 
             if toggle_rect.collidepoint(panel_pos):
@@ -501,10 +501,10 @@ class FlashCardApp:
                 return True
 
         # Handle case selection
-        y_pos += 80  # Skip alphabet toggles section
-        case_y = y_pos + 25  # Same as in draw_settings_content
+        y_pos += self.SECTION_SPACING + 85  # Skip alphabet toggles section
+        case_y = y_pos + self.SECTION_SPACING  # Same as in draw_settings_content
         for i, case in enumerate(self.case_options):
-            x = margin + i * 110
+            x = margin + i * 120
             radio_area = pygame.Rect(x, case_y, 100, 20)
 
             if radio_area.collidepoint(panel_pos):
@@ -512,7 +512,7 @@ class FlashCardApp:
                 return True
 
         # Handle hyphenation toggle
-        y_pos += 50  # Skip case selection section
+        y_pos += self.SECTION_SPACING + 40  # Skip case selection section
         checkbox_rect = pygame.Rect(
             margin, y_pos, 18, 18
         )  # Same as in draw_settings_content
@@ -527,8 +527,8 @@ class FlashCardApp:
         if not self.settings_visible:
             return dragging_min, dragging_max
 
-        # Adjust position relative to window
-        slider_y = self.settings_panel_rect.y + 75
+        # Adjust position relative to window - use same calculation as drawing
+        slider_y = self.settings_panel_rect.y + 50 + self.SECTION_SPACING + 10
 
         # Min slider handle
         min_handle_x = (
@@ -542,7 +542,7 @@ class FlashCardApp:
         max_handle_x = (
             self.settings_panel_rect.x
             + self.PANEL_MARGIN
-            + 180
+            + 200
             + (self.slider_max_value - 4) * self.SLIDER_WIDTH // 4
         )
         max_handle_rect = pygame.Rect(max_handle_x, slider_y - 4, 8, 16)
@@ -567,7 +567,7 @@ class FlashCardApp:
             self.slider_min_value = 4 + (relative_x * 4) // self.SLIDER_WIDTH
 
         elif dragging_max:
-            max_slider_start_x = slider_start_x + 180
+            max_slider_start_x = slider_start_x + 200
             relative_x = pos[0] - max_slider_start_x
             relative_x = max(0, min(relative_x, self.SLIDER_WIDTH))
             self.slider_max_value = 4 + (relative_x * 4) // self.SLIDER_WIDTH
