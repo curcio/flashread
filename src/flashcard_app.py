@@ -39,7 +39,9 @@ class FlashCardApp:
         pygame.init()
         self.WINDOW_WIDTH = 800
         self.WINDOW_HEIGHT = 600
-        self.window = pygame.display.set_mode((self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+        self.window = pygame.display.set_mode(
+            (self.WINDOW_WIDTH, self.WINDOW_HEIGHT), pygame.RESIZABLE
+        )
         pygame.display.set_caption("FlashRead - Spanish Vocabulary")
 
     def setup_colors_and_fonts(self):
@@ -61,12 +63,50 @@ class FlashCardApp:
         self.COGWHEEL_HOVER = (70, 130, 180)
         self.COGWHEEL_ACTIVE = (50, 100, 150)
 
+        # Font size setting
+        self.font_size = 170  # Default font size for main word display
+        self.min_font_size = 50  # Minimum font size
+        self.max_font_size = 300  # Maximum font size
+
         # Fonts
-        self.font = pygame.font.Font(None, 170)  # Main word display
+        self.font = pygame.font.Font(None, self.font_size)  # Main word display
         self.settings_title_font = pygame.font.Font(None, 24)
         self.settings_label_font = pygame.font.Font(None, 20)
         self.settings_text_font = pygame.font.Font(None, 18)
         self.slider_font = pygame.font.Font(None, 18)
+
+    def update_font_size(self, new_size):
+        """Update the main word display font size."""
+        self.font_size = max(self.min_font_size, min(self.max_font_size, new_size))
+        self.font = pygame.font.Font(None, self.font_size)
+
+    def handle_window_resize(self, new_size):
+        """Handle window resize events."""
+        self.WINDOW_WIDTH, self.WINDOW_HEIGHT = new_size
+        self.window = pygame.display.set_mode(new_size, pygame.RESIZABLE)
+
+        # Update cogwheel position
+        self.cogwheel_rect = pygame.Rect(
+            self.WINDOW_WIDTH - self.COGWHEEL_SIZE - self.COGWHEEL_MARGIN,
+            self.COGWHEEL_MARGIN,
+            self.COGWHEEL_SIZE,
+            self.COGWHEEL_SIZE,
+        )
+
+        # Update settings panel position (keep it centered)
+        panel_x = (self.WINDOW_WIDTH - self.PANEL_WIDTH) // 2
+        panel_y = 80  # Below the word display
+        self.settings_panel_rect = pygame.Rect(
+            panel_x, panel_y, self.PANEL_WIDTH, self.PANEL_HEIGHT
+        )
+
+        # Update close button position
+        self.close_button_rect = pygame.Rect(
+            self.settings_panel_rect.right - 30,
+            self.settings_panel_rect.top + 10,
+            20,
+            20,
+        )
 
     def setup_settings_panel(self):
         """Set up the collapsible settings panel."""
@@ -78,7 +118,7 @@ class FlashCardApp:
         self.COGWHEEL_SIZE = 32
         self.COGWHEEL_MARGIN = 20
         self.PANEL_WIDTH = 480
-        self.PANEL_HEIGHT = 420
+        self.PANEL_HEIGHT = 480
         self.PANEL_MARGIN = 40
         self.SECTION_SPACING = 25
         self.ELEMENT_SPACING = 12
@@ -158,6 +198,11 @@ class FlashCardApp:
         # Hyphenation toggle (checkbox in settings panel)
         self.hyphenate_toggle_rect = pygame.Rect(panel_x, case_start_y + 65, 20, 20)
         self.hyphenate_enabled = False
+
+        # Font size controls (+/- buttons in settings panel)
+        font_size_y = case_start_y + 100
+        self.font_size_decrease_rect = pygame.Rect(panel_x, font_size_y, 30, 30)
+        self.font_size_increase_rect = pygame.Rect(panel_x + 35, font_size_y, 30, 30)
 
     def draw_cogwheel(self):
         """Draw the cogwheel icon in the upper right corner."""
@@ -379,6 +424,35 @@ class FlashCardApp:
         )
         surface.blit(hyphen_text, (margin + 25, y_pos))
 
+        # Font Size section
+        y_pos += self.SECTION_SPACING + 35
+        label_text = self.settings_label_font.render("Font Size:", True, self.BLACK)
+        surface.blit(label_text, (margin, y_pos))
+
+        font_size_y = y_pos + self.SECTION_SPACING
+
+        # Decrease font size button (-)
+        decrease_rect = pygame.Rect(margin, font_size_y, 30, 30)
+        pygame.draw.rect(surface, self.GRAY, decrease_rect)
+        pygame.draw.rect(surface, self.BLACK, decrease_rect, 2)
+        minus_text = self.settings_text_font.render("-", True, self.BLACK)
+        minus_rect = minus_text.get_rect(center=decrease_rect.center)
+        surface.blit(minus_text, minus_rect)
+
+        # Font size display
+        font_size_text = self.settings_text_font.render(
+            f"{self.font_size}", True, self.BLACK
+        )
+        surface.blit(font_size_text, (margin + 80, font_size_y + 8))
+
+        # Increase font size button (+)
+        increase_rect = pygame.Rect(margin + 35, font_size_y, 30, 30)
+        pygame.draw.rect(surface, self.GRAY, increase_rect)
+        pygame.draw.rect(surface, self.BLACK, increase_rect, 2)
+        plus_text = self.settings_text_font.render("+", True, self.BLACK)
+        plus_rect = plus_text.get_rect(center=increase_rect.center)
+        surface.blit(plus_text, plus_rect)
+
     def get_filtered_df(self):
         """Filter the vocabulary DataFrame based on current UI settings."""
         active_letters = "".join(
@@ -518,6 +592,22 @@ class FlashCardApp:
         )  # Same as in draw_settings_content
         if checkbox_rect.collidepoint(panel_pos):
             self.hyphenate_enabled = not self.hyphenate_enabled
+            return True
+
+        # Handle font size controls
+        y_pos += self.SECTION_SPACING + 35  # Skip hyphenation section
+        font_size_y = y_pos + self.SECTION_SPACING
+
+        # Decrease font size button
+        decrease_rect = pygame.Rect(margin, font_size_y, 30, 30)
+        if decrease_rect.collidepoint(panel_pos):
+            self.update_font_size(self.font_size - 10)
+            return True
+
+        # Increase font size button
+        increase_rect = pygame.Rect(margin + 35, font_size_y, 30, 30)
+        if increase_rect.collidepoint(panel_pos):
+            self.update_font_size(self.font_size + 10)
             return True
 
         return False
@@ -678,6 +768,10 @@ class FlashCardApp:
                 if event.type == QUIT:
                     pygame.quit()
                     return
+
+                elif event.type == pygame.VIDEORESIZE:
+                    self.handle_window_resize(event.size)
+                    self.display_word(current_word)
 
                 elif event.type == MOUSEBUTTONUP:
                     dragging_min = dragging_max = False

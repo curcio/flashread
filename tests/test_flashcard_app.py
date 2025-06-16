@@ -59,7 +59,7 @@ class TestFlashCardApp:
 
         # Test panel dimensions
         assert app.PANEL_WIDTH == 480
-        assert app.PANEL_HEIGHT == 420
+        assert app.PANEL_HEIGHT == 480
         assert app.PANEL_MARGIN == 40
 
         # Test cogwheel position
@@ -586,3 +586,86 @@ class TestFlashCardApp:
         result = app.handle_settings_interactions(hyphen_click_pos)
         assert result is True
         assert app.hyphenate_enabled == (not original_hyphen_state)
+
+    def test_font_size_controls(self, sample_vocabulary):
+        """Test font size increase and decrease functionality."""
+        app = FlashCardApp(sample_vocabulary)
+
+        # Test initial font size
+        assert app.font_size == 170
+        assert app.min_font_size == 50
+        assert app.max_font_size == 300
+
+        # Test increase font size
+        original_size = app.font_size
+        app.update_font_size(original_size + 10)
+        assert app.font_size == original_size + 10
+
+        # Test decrease font size
+        app.update_font_size(app.font_size - 20)
+        assert app.font_size == original_size - 10
+
+        # Test minimum boundary
+        app.update_font_size(10)  # Below minimum
+        assert app.font_size == app.min_font_size
+
+        # Test maximum boundary
+        app.update_font_size(400)  # Above maximum
+        assert app.font_size == app.max_font_size
+
+    def test_font_size_button_interactions(self, sample_vocabulary):
+        """Test font size button interactions in settings panel."""
+        app = FlashCardApp(sample_vocabulary)
+        app.settings_visible = True
+
+        # Calculate font size buttons position
+        margin = app.PANEL_MARGIN
+        y_pos = (
+            50
+            + app.SECTION_SPACING
+            + 75
+            + app.SECTION_SPACING
+            + 85
+            + app.SECTION_SPACING
+            + 40
+            + app.SECTION_SPACING
+            + 35
+        )
+        font_size_y = y_pos + app.SECTION_SPACING
+
+        # Test decrease button
+        original_size = app.font_size
+        decrease_pos = (margin + 15, font_size_y + 15)  # Center of decrease button
+        result = app.handle_settings_interactions(decrease_pos)
+        assert result is True
+        assert app.font_size == original_size - 10
+
+        # Test increase button
+        current_size = app.font_size
+        increase_pos = (margin + 35 + 15, font_size_y + 15)  # Center of increase button
+        result = app.handle_settings_interactions(increase_pos)
+        assert result is True
+        assert app.font_size == current_size + 10
+
+    def test_window_resize_functionality(self, sample_vocabulary):
+        """Test window resize handling."""
+        app = FlashCardApp(sample_vocabulary)
+
+        # Test initial window size
+        assert app.WINDOW_WIDTH == 800
+        assert app.WINDOW_HEIGHT == 600
+
+        # Test resize handling
+        new_size = (1000, 700)
+        app.handle_window_resize(new_size)
+
+        assert app.WINDOW_WIDTH == 1000
+        assert app.WINDOW_HEIGHT == 700
+
+        # Test that cogwheel position is updated
+        expected_cogwheel_x = 1000 - app.COGWHEEL_SIZE - app.COGWHEEL_MARGIN
+        assert app.cogwheel_rect.x == expected_cogwheel_x
+
+        # Test that settings panel is recentered
+        expected_panel_x = (1000 - app.PANEL_WIDTH) // 2
+        assert app.settings_panel_rect.x == expected_panel_x
